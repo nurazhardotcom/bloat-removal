@@ -1,0 +1,7 @@
+{:name "bloat-removal"
+ :generate {:endpoint "http://127.0.0.1:9931/v1/chat/completions"
+            :model "qwen3-14b" :command "bin/bloat-removal scan"}
+ :gate {:command "bin/bloat-removal selftest"}
+ :diff {:scope ["bin/"] :forbid ["PRIVATE KEY" "AKIA[0-9A-Z]{16}"] :max-file-bytes 1048576}
+ :retry {:max 1 :escalate-after 1}
+ :artifacts "Reports/"}

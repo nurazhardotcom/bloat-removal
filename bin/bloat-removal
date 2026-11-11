@@ -1,0 +1,23 @@
+#!/bin/sh
+# bloat-removal: dead-code candidate scan, gated by host regression selftest.
+# Scan only reports; deletion happens only after the host gate passes.
+set -u
+cmd=${1:-scan}
+case "$cmd" in
+  scan)
+    dir=${2:-.}
+    grep -rhoE '\(defun [a-zA-Z0-9*/+<>=-]+' "$dir" --include='*.lisp' 2>/dev/null \
+      | awk '{print $2}' | sort -u | while IFS= read -r fn; do
+          n=$(grep -rF --include='*.lisp' -e "$fn" "$dir" 2>/dev/null | wc -l)
+          [ "$n" -le 1 ] && echo "candidate: $fn (refs=$n)"
+        done
+    echo "bloat-removal: candidates above are proposals only; gate before deleting." ;;
+  selftest)
+    tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
+    printf '(defun used-fn () 1)\n(defun dead-fn () 2)\n(used-fn)\n' > "$tmp/a.lisp"
+    out=$("$0" scan "$tmp")
+    echo "$out" | grep -q 'dead-fn' || { echo "selftest: dead-fn missed" >&2; exit 1; }
+    echo "$out" | grep -q 'used-fn (refs' && { echo "selftest: used-fn flagged" >&2; exit 1; }
+    echo "bloat-removal selftest: PASS" ;;
+  *) echo "usage: bloat-removal {scan [dir]|selftest}" >&2; exit 2 ;;
+esac
